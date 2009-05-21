@@ -1,6 +1,6 @@
 <?php
 /*
-   Copyright 2009, Carl Hall
+   Copyright 2009, Carl Hall <carl.hall@gmail.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -14,8 +14,6 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-require_once 'http_response.php';
-
 /**
  * Base class for handling REST based calls.
  *
@@ -26,7 +24,7 @@ class RestController
 {
     function __construct()
     {
-
+		loadResources();
     }
 
     function loadResources()
@@ -46,6 +44,8 @@ class RestController
 
     function dispatch($url)
     {
+    	!empty($url) or die('Cannot dispatch without a URL.');
+
     	$entity = null;
         $id = null;
 
@@ -53,9 +53,6 @@ class RestController
 //            // get everything after the name of this script
 //            $url = substr($_SERVER['REQUEST_URI'], strlen($_SERVER['SCRIPT_NAME']));
 //        }
-
-        // separate the uri into elements split on /
-        $elements = explode('/', $url);
 
         // separate the uri into elements split on /
         $elements = explode('/', $url);
@@ -71,9 +68,8 @@ class RestController
         }
 
         /** @TODO only check for _method when REQUEST_METHOD = (GET|POST) */
-
-        $format = !empty($_GET['_format']) ? strtolower($_GET['_format']): $this->get_format($url);
-        $method = !empty($_GET['_method']) ? strtoupper($_GET['_method']): $_SERVER['REQUEST_METHOD'];
+        $method = $this->get_method();
+        $format = $this->get_format($url);
 
         $results = null;
         $data = $_POST['data'];
@@ -114,8 +110,8 @@ class RestController
         if (!empty($resource->output)) {
             $results = $this->transform($resource->output, $format);
         }
-        send_response_code($resource->response_code, $results);
-
+        header("HTTP/1.1 {$resource->response_code}", true, $resource->response_code);
+		
 /*
         if ($results === true) {
             send_response_code(204);
@@ -129,6 +125,20 @@ class RestController
         }
 */
     }
+
+	/**
+	 * Gets the request method performed.
+	 */
+	protected function get_method()
+	{
+		$method = $_SERVER['REQUEST_METHOD'];
+		if ($method == 'GET' or $method == 'POST') {
+			if (!empty($_GET['_method'])) {
+				$method = strtoupper($_GET['_method']);
+			}
+		}
+		return $method;
+	}
 
     /**
      * Get the requested response format based on the name of the requested
@@ -208,20 +218,56 @@ class RestController
         return $output;
     }
 
-    function get_class_annotations($class) {
+    protected function get_class_annotations($class)
+    {
+    	// using reflection, get the doc comment for parsing
         $refClass = new ReflectionClass($class);
         $comment = $refClass->getDocComment();
 
-        $annotations = explode('@', $comment);
+		$this->get_annotations_from_text($comment);
+
+        return $annotations;
+    }
+
+	/**
+	 * Parses the annotations found on methods in a class.
+	 *
+	 * @param $class Class instance.
+	 */
+    protected function get_methods_annotations($class)
+    {
+    	$annotations = array();
+
+    	// get the methods of the class
+		$refClass = new ReflectionClass($class);
+		$methods = $refClass->getMethods();
+
+		foreach ( $methods as $method ) {
+			$methodAnnotations = $this->get_annotations_from_text($method->getDocComment());
+			$annotations[$method->getName()] = $methodAnnotations;
+		}
+       
+		return $annotations;
+    }
+
+	/**
+	 * Parses the annotations from a block of text usually taken from a class
+	 * or method doc comment.
+	 *
+	 * @param string $text
+	 */
+	protected function get_annotations_from_text($text)
+	{
+		// split on @ then push the first element off because it is not part of
+		// the annotation.
+        $annotations = explode('@', $text);
         array_shift($annotations);
-    }
-
-    function get_methods_annotations($class) {
-
-    }
+        $annotations = array_map(trim, $annotations);
+        return $annotations;
+	}
 }
 
-interface RestResource
+class RestResource
 {
 	protected $response_code = 204;
 	protected $headers = array();
@@ -229,11 +275,11 @@ interface RestResource
 
     // these are only placeholders.  these will be replaced by annotation based
 	// calls.
-    function _new();
-    function _list();
-    function create();
-    function read();
-    function update();
-    function delete();
+    function _new() {}
+    function _list() {}
+    function create() {}
+    function read() {}
+    function update() {}
+    function delete() {}
 }
 ?>
