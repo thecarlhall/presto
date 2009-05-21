@@ -15,6 +15,20 @@
    limitations under the License.
 */
 /**
+ * Presto is a simple to use and very lightweight REST framework for PHP,
+ * it will help you to handle rest routing and input/output of data without
+ * getting in your way
+ * 
+ * Feel free to contact the authors if you have questions or need assistance
+ * @author Carl Hall <carl.hall@gmail.com>
+ * @author Aaron Zeckoski <azeckoski@gmail.com>
+ */
+error_reporting(E_ALL);
+
+// handling debugging and testing
+$DEBUG = isset ($_REQUEST['debug'])?true:false;
+$SAMPLE = isset ($_REQUEST['sample'])?true:false;
+/**
  * Base class for handling REST based calls.
  *
  * URLs should be handled in the convention specified in the REST microformat.
@@ -36,6 +50,23 @@ class RestController
             }
         }
     }
+
+	/**
+	 * This method will output the current known routes and information about the presto routing system,
+	 * to use this just call the method and dump the output into the body of an html page,
+	 * example: echo RestController->displayResources();
+	 * @return HTML indicating the status of the presto routing and system
+	 */
+	function displayResources() {
+		// capture the output
+		ob_start();
+		echo "<div>";
+		echo "HELLO"; // @TODO make this actually output real information about the system
+		echo "</div>";
+		$content = ob_get_contents();
+		ob_end_clean();
+		return $content;
+	}
 
     function display()
     {
@@ -281,5 +312,23 @@ class RestResource
     function read() {}
     function update() {}
     function delete() {}
+}
+
+// This demonstrates sample usage of the framework
+if ($SAMPLE) {
+	// create the RestController
+	$rc = new RestController();
+?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" <?php language_attributes(); ?>>
+	<head>
+		<title>Presto Sample</title>
+	</head>
+	<body>
+		This is the sample Presto start page <br/>
+		<?php echo $rc->displayResources(); ?>
+	</body>
+</html>
+<?php
 }
 ?>
