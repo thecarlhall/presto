@@ -23,7 +23,8 @@
  * @author Carl Hall <carl.hall@gmail.com>
  * @author Aaron Zeckoski <azeckoski@gmail.com>
  */
-error_reporting(E_ALL);
+define( 'ABSPATH', dirname(__FILE__) . '/' ); // the absolute path to this file
+error_reporting(E_ALL ^ E_NOTICE ^ E_USER_NOTICE); // strict error reporting
 
 // handling debugging and testing
 $DEBUG = isset ($_REQUEST['debug'])?true:false;
@@ -36,19 +37,75 @@ $SAMPLE = isset ($_REQUEST['sample'])?true:false;
  */
 class RestController
 {
-    function __construct()
+	const DEFAULT_RESOURCES_DIR = 'resources';
+	private $resourcesPath;
+
+	/**
+	 * The full set of all known rest classes
+	 * class name -> object
+	 */
+	private $restClasses = array();
+	/**
+	 * Holds the complete set of all known Rest Resources
+	 */
+	private $restResources = array();
+
+	/**
+	 * Create a Presto RestController
+	 * @return NULL
+	 * @param object $resourcesPath[optional] the path to the directory with the RestResource classes, defaults to resources
+	 */
+    function __construct($resourcesPath = self::DEFAULT_RESOURCES_DIR)
     {
-		loadResources();
+    	$this->loadResources($resourcesPath);
     }
 
-    function loadResources()
+	/**
+	 * Causes the rest controllers in the resources directory to be loaded
+	 * @return 
+	 */
+    function loadResources($resourcesPath = self::DEFAULT_RESOURCES_DIR)
     {
-        $resources_dir = @opendir('resources') or die('Resources directory not found.');
+    	// TODO check if dir starts with / and put in ABSPATH if not
+        $resources_dir = @opendir($resourcesPath) or die('ERROR: Resources directory '.$resourcesPath.' not found, create a resources directory to hold your REST controllers');
         while ($file = readdir($resources_dir)) {
-            if ($file != '.' && $file != '..') {
-                require $file;
+        	// filter out all files except .php files
+			$start = substr($file, 0, 1);
+            if ($start != '.') {
+            	$pos = strrpos($file, '.');
+				if ($pos > 0) {
+					$extension = substr($file, $pos);
+					if ($extension = 'php') {
+						$filePath = $resourcesPath.'/'.$file;
+						if (file_exists($filePath)) {
+							$fpos = strpos($file, '.');
+							$className = substr($file, 0, $fpos);
+			                require $filePath;
+							if (class_exists($className)) {
+								echo "found file: $filePath ($className) <br/>";
+								$newClass = new $className;
+								$this->restClasses[$className] = $newClass;
+							}
+						}
+					}
+				}
             }
         }
+		if ( (int)$this->restClasses.length == 0) {
+			die("WARNING: No RestResource classes found, you need to create at least one class which extends RestResource in: $resourcesPath");
+		}
+		// now we pull the resources out of all the rest classes we found
+		foreach ($this->restClasses as $class => $obj) {
+			echo "class: $class <br/>";
+			$classAnnotes = $this->get_class_annotations($class);
+			var_dump($classAnnotes);
+			echo "<br/>";
+			$methodsAnnotes = $this->get_methods_annotations($class);
+			var_dump($methodsAnnotes);
+			echo "<br/>";
+		}
+		// dump them 
+		var_dump($this->restResources);
     }
 
 	/**
@@ -254,9 +311,12 @@ class RestController
     	// using reflection, get the doc comment for parsing
         $refClass = new ReflectionClass($class);
         $comment = $refClass->getDocComment();
+		// strip out the comment bits in a horrible way
+		$comment = str_replace("/*", "", $comment);
+		$comment = str_replace("*/", "", $comment);
+		$comment = str_replace("*", "", $comment);
 
-		$this->get_annotations_from_text($comment);
-
+		$annotations = $this->get_annotations_from_text($comment);
         return $annotations;
     }
 
@@ -274,7 +334,12 @@ class RestController
 		$methods = $refClass->getMethods();
 
 		foreach ( $methods as $method ) {
-			$methodAnnotations = $this->get_annotations_from_text($method->getDocComment());
+			$comment = $method->getDocComment();
+			// strip out the comment bits in a horrible way
+			$comment = str_replace("/*", "", $comment);
+			$comment = str_replace("*/", "", $comment);
+			$comment = str_replace("*", "", $comment);
+			$methodAnnotations = $this->get_annotations_from_text($comment);
 			$annotations[$method->getName()] = $methodAnnotations;
 		}
        
@@ -289,11 +354,24 @@ class RestController
 	 */
 	protected function get_annotations_from_text($text)
 	{
+    	$annotations = array();
 		// split on @ then push the first element off because it is not part of
 		// the annotation.
-        $annotations = explode('@', $text);
-        array_shift($annotations);
-        $annotations = array_map(trim, $annotations);
+        $annotes = explode('@', $text);
+        array_shift($annotes);
+        $annotes = array_map(trim, $annotes);
+		// now extract the annotations
+		foreach ($annotes as $value) {
+			$pos = strpos($value, " ");
+			if ($pos <= 0) {
+				// only an annotation
+				$annotations[$value] = "";
+			} else {
+				// includes args
+				$annote = substr($value, 0, $pos);
+				$annotations[$annote] = substr($value, $pos+1);
+			}
+		}
         return $annotations;
 	}
 }
