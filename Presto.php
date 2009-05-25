@@ -6,6 +6,8 @@
  * it will help you to handle rest routing and input/output of data without
  * getting in your way
  *
+ * PHP version 5
+ *
  * LICENSE:
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,19 +23,19 @@
  * @package   Presto
  * @author    Carl Hall <carl.hall@gmail.com>
  * @author    Aaron Zeckoski <azeckoski@gmail.com>
- * @copyright 2009, Carl Hall
+ * @copyright 2009 Carl Hall
  * @license   http://www.apache.org/licenses/LICENSE-2.0 Apache License, Version 2.0
  * @version   SVN: $Id:$
  * @link      https://www.ohloh.net/p/PhpRESTo
  * @since     inception
- * PHP Version 5
  */
-define('ABSPATH', dirname(__FILE__) . '/'); // the absolute path to this file
+define('ABSPATH', dirname(__FILE__).'/'); // the absolute path to this file
 error_reporting(E_ALL ^ E_NOTICE ^ E_USER_NOTICE); // strict error reporting
 
 // handling debugging and testing
 $DEBUG = isset ($_REQUEST['debug'])?true:false;
 $SAMPLE = isset ($_REQUEST['sample'])?true:false;
+
 /**
  * Base class for handling REST based calls (routing and processing),
  * This will also take care of detection of REST resource classes and execution
@@ -50,6 +52,7 @@ $SAMPLE = isset ($_REQUEST['sample'])?true:false;
  */
 class RestController
 {
+    // {{{ constants
     const DEFAULT_RESOURCES_DIR = 'resources';
 
     const ANNOTATION_PATH = 'PATH';
@@ -58,46 +61,53 @@ class RestController
     const ANNOTATION_POST = 'POST';
     const ANNOTATION_PUT = 'PUT';
     const ANNOTATION_DELETE = 'DELETE';
+    // }}}
 
-    private $_resourcesPath;
-
+    // {{{ properties
     /**
      * The full set of all known rest classes
      * class name -> object
+     * @var array
      */
     private $_restClasses = array ();
     /**
      * Holds the complete set of all known Rest Resources
+     * @var array
      */
     private $_restResources = array ();
+    // }}}
 
     /**
      * Create a Presto RestController
      *
-     * @param object $_resourcesPath [optional] the path to the directory with
-     * the RestResource classes, defaults to resources
+     * @param object $resourcesPath [optional] the path to the directory with
+     *     the RestResource classes, defaults to resources
      */
-    function __construct($_resourcesPath = self::DEFAULT_RESOURCES_DIR)
+    function __construct($resourcesPath = self::DEFAULT_RESOURCES_DIR)
     {
-        $this->loadResources($_resourcesPath);
+        $this->loadResources($resourcesPath);
     }
 
     /**
      * Causes the rest controllers in the resources directory to be loaded
      *
-     * @param object $_resourcesPath [optional]
-     * @return NULL
+     * @param string $resourcesPath [optional] the path to the directory with
+     *     the RestResource classes, defaults to resources
+     *
+     * @return void
      */
-    function loadResources($_resourcesPath = self::DEFAULT_RESOURCES_DIR)
+    function loadResources($resourcesPath = self::DEFAULT_RESOURCES_DIR)
     {
         // check if dir starts with / and put in ABSPATH if not
-        $dirStart = substr($_resourcesPath, 0, 1);
+        $dirStart = substr($resourcesPath, 0, 1);
         if ($dirStart != '/') {
             // relative to the location of this file
-            $_resourcesPath = ABSPATH.$_resourcesPath;
+            $resourcesPath = ABSPATH.$resourcesPath;
         }
         // open the folder and look for Rest Resource classes in the php files
-        $resources_dir = @opendir($_resourcesPath) or die ('ERROR: Resources directory '.$_resourcesPath.' not found, create a resources directory to hold your REST controllers');
+        $resources_dir = @opendir($resourcesPath) or
+        die ('ERROR: Resources directory '.$resourcesPath.' not found, '
+        .'create a resources directory to hold your REST controllers');
         while ($file = readdir($resources_dir)) {
             // filter out all files except .php files
             $start = substr($file, 0, 1);
@@ -106,7 +116,7 @@ class RestController
                 if ($pos > 0) {
                     $extension = substr($file, $pos);
                     if ($extension = 'php') {
-                        $filePath = $_resourcesPath.'/'.$file;
+                        $filePath = $resourcesPath.'/'.$file;
                         if (file_exists($filePath)) {
                             $fpos = strpos($file, '.');
                             $className = substr($file, 0, $fpos);
@@ -114,34 +124,38 @@ class RestController
                             if (class_exists($className)) {
                                 echo "found file: $filePath ($className) <br/>";
                                 $newClass = new $className;
-                                $this->restClasses[$className] = $newClass;
+                                $this->_restClasses[$className] = $newClass;
                             }
                         }
                     }
                 }
             }
         }
-        if ((int)$this->restClasses.length == 0) {
-            die ("WARNING: No RestResource classes found, you need to create at least one class which extends RestResource in: $_resourcesPath");
+        if (sizeof($this->_restClasses) == 0) {
+            die ("WARNING: No RestResource classes found, "
+            ."you need to create at least one class which extends "
+            ."RestResource in: $resourcesPath");
         }
         // now we pull the resources out of all the rest classes we found
-        foreach ($this->restClasses as $class=>$obj) {
+        foreach ($this->_restClasses as $class=>$obj) {
             echo "class: $class <br/>";
-            $classAnnotes = $this->get_class_annotations($class);
+            $classAnnotes = $this->getClassAnnotations($class);
             var_dump($classAnnotes);
             echo "<br/>";
-            $base_path = strtolower($class); // default convention is the name of the class
+            // default convention is the name of the class
+            $base_path = strtolower($class);
             if (! empty($classAnnotes[self::ANNOTATION_PATH])) {
                 $base_path = $classAnnotes[self::ANNOTATION_PATH];
             }
             if (substr($base_path, 0, 1) != '/') {
                 $base_path = '/'.$base_path;
             }
-            $methodsAnnotes = $this->get_methods_annotations($class);
+            $methodsAnnotes = $this->getMethodsAnnotations($class);
             var_dump($methodsAnnotes);
             echo "<br/>";
             foreach ($methodsAnnotes as $method=>$annotes) {
-                $res_path = strtolower($method); // default convention is the name of the method
+                // default convention is the name of the method
+                $res_path = strtolower($method);
                 if (! empty($annotes[self::ANNOTATION_PATH])) {
                     $res_path = $annotes[self::ANNOTATION_PATH];
                 }
@@ -153,7 +167,7 @@ class RestController
                 if (array_key_exists(self::ANNOTATION_GET, $annotes)) {
                     $found = true;
                     $path = $annotes[self::ANNOTATION_GET];
-                    $this->resourcesPath[$method] = 'GET'.' '.$path;
+                    $resourcesPath[$method] = 'GET'.' '.$path;
                 }
                 if (array_key_exists(self::ANNOTATION_POST, $annotes)) {
                     $found = true;
@@ -167,20 +181,23 @@ class RestController
                 if (array_key_exists(self::ANNOTATION_METHOD, $annotes)) {
                     $found = true;
                 }
-                if (!found) {
+                if (!$found) {
                     // default to GET
 
                 }
             }
         }
         // dump them
-        var_dump($this->restResources);
+        var_dump($this->_restResources);
     }
 
     /**
-     * This method will output the current known routes and information about the presto routing system,
-     * to use this just call the method and dump the output into the body of an html page,
+     * This method will output the current known routes
+     * and information about the presto routing system,
+     * to use this just call the method and dump the
+     * output into the body of an html page,
      * example: echo RestController->displayResources();
+     *
      * @return HTML indicating the status of the presto routing and system
      */
     function displayResources()
@@ -188,18 +205,24 @@ class RestController
         // capture the output
         ob_start();
         echo "<div>";
-        echo "HELLO"; // @TODO make this actually output real information about the system
+        echo "HELLO"; // @TODO make this actually output real information
         echo "</div>";
         $content = ob_get_contents();
         ob_end_clean();
         return $content;
     }
 
-    function display()
-    {
-        echo $this->dispatch();
-    }
-
+    /**
+     * Handles the actual URL dispatching by correctly calling the method
+     * attached to the current URL route,
+     * this will handle the output parsing and set up the status correctly,
+     * it also assigns headers and dumps the output to the response stream
+     *
+     * @param object $url the url path
+     *     (should be the path after the name of the script)
+     *
+     * @return void
+     */
     function dispatch($url)
     {
         ! empty($url) or die ('Cannot dispatch without a URL.');
@@ -207,269 +230,396 @@ class RestController
         $entity = null;
         $id = null;
 
-        //        if (empty($url)) {
-        //            // get everything after the name of this script
-        //            $url = substr($_SERVER['REQUEST_URI'], strlen($_SERVER['SCRIPT_NAME']));
-        //        }
+        //if (empty($url)) {
+        //    // get everything after the name of this script
+        //    $url = substr($_SERVER['REQUEST_URI'],
+        //        strlen($_SERVER['SCRIPT_NAME']));
+        //}
 
         // separate the uri into elements split on /
         $elements = explode('/', $url);
         $num_elements = count($elements);
-        $resource = null;
+
+        // @TODO most of this is not working -AZ
+        $resource = new RestResource(); // null;
         if ($num_elements >= 1) {
             $entity = urldecode($elements[0]);
             $resource = new $entity;
         }
 
         if ($num_elements >= 2) {
-            $id = $this->get_id(urldecode($elements[1]));
+            $id = $this->getId(urldecode($elements[1]));
         }
 
-        /** @TODO only check for _method when REQUEST_METHOD = (GET|POST) */
-        $method = $this->get_method();
-        $format = $this->get_format($url);
+        $method = $this->getMethod();
+        $format = $this->getFormat($url);
 
         $results = null;
+        // @TODO this should be the data from the request body instead
         $data = $_POST['data'];
 
         switch($method) {
+        case "GET":
             // read
-            case 'GET':
-                if (! empty($id)) {
-                    if ($id == 'new') {
-                        $resource->_new();
-                    } else {
-                        // match on @GET /resource/{?}, @GET /{?}
-                        $resource->read($id);
-                    }
+            if (! empty($id)) {
+                if ($id == 'new') {
+                    $results = $resource->httpNew();
                 } else {
-                    // get a list of the current user's data
-                    $resource->index();
+                    // match on @GET /resource/{?}
+                    $results = $resource->httpRead($id);
                 }
+            } else {
+                // match @GET /resource
+                $results = $resource->httpList();
+            }
             break;
 
-            // update
-            case 'POST':
-                $resource->create($data);
-                break;
+        case "POST":
+            // create (technically not always)
+            $results = $resource->httpCreate($data);
+            break;
 
-            // create
-            case 'PUT':
-                $resource->update($data);
-                break;
+        case "PUT":
+            // update (idempotent create or update)
+            $results = $resource->httpUpdate($data);
+            break;
 
+        case "DELETE":
             // delete
-            case 'DELETE':
-                $resource->delete($id);
-                break;
+            $results = $resource->httpDelete($id);
+            break;
+
+        default:
+            die ("Invalid method type specified: ".$method);
+        }
+
+        // @TODO handle the other headers
+
+        // handle the response code
+        header(
+            "HTTP/1.1 {".$resource->responseCode."}", 
+            true, 
+            $resource->responseCode
+        );
+
+        // @TODO handle the case where the data was sent out in some other way
+        $output = null;
+        if (! empty($results)) {
+            if (is_array($results)) {
+                $output = $this->transcode($results, $format);
+            } else if (is_string($results)) {
+                // not so sure about this one... -AZ
+                if ($resource->isJSON) {
+                    $output = $this->jsonTransform($results, $format);
+                }
+                $output = $results;
+            }
+            echo $results;
+        }
     }
 
-    $results = null;
-    if (! empty($resource->output)) {
-        $results = $this->transform($resource->output, $format);
-    }
-    header("HTTP/1.1 {$resource->response_code}", true, $resource->response_code);
-
-    /*
-     if ($results === true) {
-     send_response_code(204);
-     } elseif ($results === false) {
-     send_response_code(400);
-     } elseif (is_numeric($results)) {
-     send_response_code($results);
-     } elseif ($results != null) {
-     $output = $this->transform($results, $format);
-     return $output;
-     }
+    /**
+     * Gets the request method performed from the current request (capitalized)
+     *
+     * @return the http method (example: GET)
      */
-}
-
-/**
- * Gets the request method performed.
- */
-protected function get_method()
-{
-    $method = $_SERVER['REQUEST_METHOD'];
-    if ($method == 'GET' or $method == 'POST') {
-        if (! empty($_GET['_method'])) {
-            $method = strtoupper($_GET['_method']);
+    protected function getMethod()
+    {
+        // @TODO only check for _method when REQUEST_METHOD = (GET|POST)
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method == 'GET' or $method == 'POST') {
+            if (! empty($_GET['_method'])) {
+                $method = strtoupper($_GET['_method']);
+            }
         }
-    }
-    return $method;
-}
-
-/**
- * Get the requested response format based on the name of the requested
- * playlist.
- */
-protected function get_format($name)
-{
-    // set the default format
-    //$format = 'html';
-    $format = 'json';
-
-    $last_slash = strrpos($name, '/');
-    $last_dot = strrpos($name, '.');
-
-    if ($last_slash === false) {
-        $last_slash = -1;
+        return $method;
     }
 
-    if ($last_dot !== false && $last_dot < strlen($name)-1
-    && $last_dot > $last_slash) {
-        $format = substr($name, $last_dot+1);
+    /**
+     * Get the requested response format based on the current request
+     * @return
+     * @param object $name
+     */
+     /**
+     * Get the format of the output based on the request
+     *
+     * @param object $name the path
+     *
+     * @return a format based on the request
+     */
+    protected function getFormat($name)
+    {
+        // @TODO this should look at the accepts header also
+
+        // set the default format
+        //$format = 'html';
+        $format = 'json';
+
+        $last_slash = strrpos($name, '/');
+        $last_dot = strrpos($name, '.');
+
+        if ($last_slash === false) {
+            $last_slash = -1;
+        }
+
+        if ($last_dot !== false 
+            && $last_dot < strlen($name)-1
+            && $last_dot > $last_slash
+        ) {
+            $format = substr($name, $last_dot+1);
+        }
+
+        return $format;
     }
 
-    return $format;
-}
+    /**
+     * Extract the id from a request path
+     *
+     * @param object $name the path
+     *
+     * @return the id
+     * @deprecated handle this by pulling out the variable based on the path
+     */
+    protected function getId($name)
+    {
+        $id = '';
+        $last_slash = strrpos($name, '/');
+        $last_dot = strrpos($name, '.');
 
-protected function get_id($name)
-{
-    $id = '';
-    $last_slash = strrpos($name, '/');
-    $last_dot = strrpos($name, '.');
+        if ($last_slash === false) {
+            $last_slash = -1;
+        }
 
-    if ($last_slash === false) {
-        $last_slash = -1;
-    }
-
-    // neither dot nor slash was found
-    if ($last_dot === false && $last_slash === false) {
-        $id = $name;
-        // a dot was found after a slash
-    } elseif ($last_dot !== false && $last_dot > $last_slash) {
-        $id = substr($name, $last_slash+1, $last_dot);
-    } else {
-        $id = substr($name, $last_slash+1);
-    }
-
-    return $id;
-}
-
-/**
- * Factory method to transform json into a different format.
- */
-function transform($results, $format)
-{
-    // initialize templating
-    require_once SMARTY_DIR.'Smarty.class.php';
-    $smarty = new Smarty;
-    $smarty->assign('title', $results['title']);
-
-    $data = $results['output'];
-
-    $output = '';
-    // send back the array if no format or 'raw'
-    if ( empty($format) or $format == 'raw') {
-        $output = $data;
-    } elseif ($format == 'json') {
-        $output = json_encode($data);
-    } else {
-        $template = "{$format}.tpl";
-        if (is_readable("{$smarty->template_dir}/$template")) {
-            $smarty->assign('data', $data);
-            $output = $smarty->fetch($template);
+        // neither dot nor slash was found
+        if ($last_dot === false && $last_slash === false) {
+            $id = $name;
+            // a dot was found after a slash
+        } elseif ($last_dot !== false && $last_dot > $last_slash) {
+            $id = substr($name, $last_slash+1, $last_dot);
         } else {
-            $output = "Unable to read template [$template]";
+            $id = substr($name, $last_slash+1);
         }
+
+        return $id;
     }
-    return $output;
-}
 
-protected function get_class_annotations($class)
-{
-    // using reflection, get the doc comment for parsing
-    $refClass = new ReflectionClass($class);
-    $comment = $refClass->getDocComment();
-    // strip out the comment bits in a horrible way
-    $comment = str_replace("/*", "", $comment);
-    $comment = str_replace("*/", "", $comment);
-    $comment = str_replace("*", "", $comment);
+    /**
+     * This method will be used to encode an array into string output data
+     *
+     * @param array  $result an array of data to encode into a string
+     * @param string $format [optional] defaults to json
+     *
+     * @return the data encoded into a string
+     */
+    function transcode($result, $format = "json")
+    {
+        // @TODO make this actually work
+        return implode($result);
+    }
 
-    $annotations = $this->get_annotations_from_text($comment);
-    return $annotations;
-}
+    /**
+     * Factory method to transform json into a different format
+     *
+     * @param object $results the output string from the methods
+     * @param object $format  the reformatted output
+     *
+     * @return the data in the requested format
+     * @deprecated what is this supposed to be doing?
+     */
+    function jsonTransform($results, $format)
+    {
+        // initialize templating
+        include_once SMARTY_DIR.'Smarty.class.php';
+        $smarty = new Smarty;
+        $smarty->assign('title', $results['title']);
 
-/**
- * Parses the annotations found on methods in a class.
- *
- * @param $class Class instance.
- */
-protected function get_methods_annotations($class)
-{
-    $annotations = array ();
+        $data = $results['output'];
 
-    // get the methods of the class
-    $refClass = new ReflectionClass($class);
-    $methods = $refClass->getMethods();
+        $output = '';
+        // send back the array if no format or 'raw'
+        if ( empty($format) or $format == 'raw') {
+            $output = $data;
+        } elseif ($format == 'json') {
+            $output = json_encode($data);
+        } else {
+            $template = "{$format}.tpl";
+            if (is_readable("{$smarty->template_dir}/$template")) {
+                $smarty->assign('data', $data);
+                $output = $smarty->fetch($template);
+            } else {
+                $output = "Unable to read template [$template]";
+            }
+        }
+        return $output;
+    }
 
-    foreach ($methods as $method) {
-        $comment = $method->getDocComment();
+    /**
+     * Parses the annotations on a class into an array
+     *
+     * @param object $class the name of any visible class
+     *
+     * @return the array of annotation name -> value
+     */
+    protected function getClassAnnotations($class)
+    {
+        // using reflection, get the doc comment for parsing
+        $refClass = new ReflectionClass($class);
+        $comment = $refClass->getDocComment();
+        $annotations = $this->getAnnotationsFromText($comment);
+        return $annotations;
+    }
+
+    /**
+     * Parses the annotations found on methods in a class into an array
+     *
+     * @param string $class the name of any visible class
+     *
+     * @return an array of method name -> (annotation name -> value)
+     */
+    protected function getMethodsAnnotations($class)
+    {
+        $annotations = array ();
+
+        // get the methods of the class
+        $refClass = new ReflectionClass($class);
+        $methods = $refClass->getMethods();
+
+        foreach ($methods as $method) {
+            $comment = $method->getDocComment();
+            $methodAnnotations = $this->getAnnotationsFromText($comment);
+            $annotations[$method->getName()] = $methodAnnotations;
+        }
+
+        return $annotations;
+    }
+
+    /**
+     * Parses the annotations from a block of text usually taken from a class
+     * or method doc comment.
+     *
+     * @param string $text any doccomment text
+     *
+     * @return an array of annotation name -> value
+     */
+    protected function getAnnotationsFromText($text)
+    {
+        $annotations = array ();
+
         // strip out the comment bits in a horrible way
         $comment = str_replace("/*", "", $comment);
         $comment = str_replace("*/", "", $comment);
         $comment = str_replace("*", "", $comment);
-        $methodAnnotations = $this->get_annotations_from_text($comment);
-        $annotations[$method->getName()] = $methodAnnotations;
-    }
 
-    return $annotations;
+        // split on @ then push the first element off because it is not part of
+        // the annotation.
+        $annotes = explode('@', $text);
+        array_shift($annotes);
+        $annotes = array_map("trim", $annotes);
+        // now extract the annotations
+        foreach ($annotes as $value) {
+            $pos = strpos($value, " ");
+            if ($pos <= 0) {
+                // only an annotation
+                $annotations[$value] = "";
+            } else {
+                // includes args
+                $annote = substr($value, 0, $pos);
+                $annotations[$annote] = substr($value, $pos+1);
+            }
+        }
+        return $annotations;
+    }
 }
 
 /**
- * Parses the annotations from a block of text usually taken from a class
- * or method doc comment.
+ * Extend this class to define a resource or resources which can be
+ * accessed within rest space of your application,
+ * key annotations are @PATH for the class and 
+ * method annotations include @PATH, @GET, @POST, etc., 
+ * see the help documents at the link below for more
  *
- * @param string $text
+ * @category Class
+ * @package  Presto
+ * @author   Aaron Zeckoski <azeckoski@gmail.com>
+ * @author   Carl Hall <carl.hall@gmail.com>
+ * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache License, Version 2.0
+ * @link     https://www.ohloh.net/p/PhpRESTo
  */
-protected function get_annotations_from_text($text)
-{
-    $annotations = array ();
-    // split on @ then push the first element off because it is not part of
-    // the annotation.
-    $annotes = explode('@', $text);
-    array_shift($annotes);
-    $annotes = array_map(trim, $annotes);
-    // now extract the annotations
-    foreach ($annotes as $value) {
-        $pos = strpos($value, " ");
-        if ($pos <= 0) {
-            // only an annotation
-            $annotations[$value] = "";
-        } else {
-            // includes args
-            $annote = substr($value, 0, $pos);
-            $annotations[$annote] = substr($value, $pos+1);
-        }
-    }
-    return $annotations;
-}
-}
-
 class RestResource
 {
-    protected $response_code = 204;
-    protected $headers = array ();
-    protected $output = null;
+    // {{{ properties
+    /**
+     * This should be the http response code
+     * @var int
+     */
+    public $responseCode = 204;
+    /**
+     * This put all the headers you want placed in the page in this method
+     * @var array
+     */
+    public $headers = array ();
+    /**
+     * Set this to true if the string data you are returniung will be JSON format
+     * @var boolean
+     */
+    public $isJSON = false;
+    // }}}
 
     // these are only placeholders and will be replaced by annotation based calls.
-    function _new()
+
+    /**
+     * placeholder
+     *
+     * @return the html content for the new page
+     */
+    public function httpNew()
     {
+        return null;
     }
-    function _list()
+    /**
+     * placeholder
+     *
+     * @return the list of entity as a data or string
+     */
+    public function httpList()
     {
+        return null;
     }
-    function create()
+    /**
+     * placeholder
+     *
+     * @return the id or url of the new entity
+     */
+    public function httpCreate()
     {
+        return null;
     }
-    function read()
+    /**
+     * placeholder
+     *
+     * @return the entity data as an array or a string
+     */
+    public function httpRead()
     {
+        return null;
     }
-    function update()
+    /**
+     * placeholder
+     *
+     * @return true if entity updated, false if not
+     */
+    public function httpUpdate()
     {
+        return false;
     }
-    function delete()
+    /**
+     * placeholder
+     *
+     * @return true if entity deleted, false if not
+     */
+    public function httpDelete()
     {
+        return false;
     }
 }
 
@@ -477,20 +627,16 @@ class RestResource
 if ($SAMPLE) {
     // create the RestController
     $rc = new RestController();
-?>
- <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-    <head>
-        <title>Presto Sample</title>
-    </head>
-    <body>
-        This is the sample Presto start page 
-        <br/>
-        <?php
-        echo $rc->displayResources();
-        ?>
-    </body>
-</html>
-<?php
+    echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" '
+        .'"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">\n';
+    echo '<html xmlns="http://www.w3.org/1999/xhtml">\n';
+    echo '    <head>\n';
+    echo '        <title>Presto Sample</title>\n';
+    echo '    </head>\n';
+    echo '    <body>\n';
+    echo '        This is the sample Presto start page<br/>\n';
+    echo $rc->displayResources();
+    echo '    </body>\n';
+    echo '</html>\n';
 }
 ?>
