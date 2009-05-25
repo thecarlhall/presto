@@ -506,15 +506,15 @@ class RestController
         $annotations = array ();
 
         // strip out the comment bits in a horrible way
-        $comment = str_replace("/*", "", $comment);
-        $comment = str_replace("*/", "", $comment);
-        $comment = str_replace("*", "", $comment);
+        $text = str_replace("/*", "", $text);
+        $text = str_replace("*/", "", $text);
+        $text = str_replace("*", "", $text);
 
         // split on @ then push the first element off because it is not part of
         // the annotation.
         $annotes = explode('@', $text);
         array_shift($annotes);
-        $annotes = array_map("trim", $annotes);
+        $annotes = array_map('trim', $annotes);
         // now extract the annotations
         foreach ($annotes as $value) {
             $pos = strpos($value, " ");
@@ -524,7 +524,19 @@ class RestController
             } else {
                 // includes args
                 $annote = substr($value, 0, $pos);
-                $annotations[$annote] = substr($value, $pos+1);
+                if ($annote == 'param') {
+                    /* to make it so we get all params back we
+                     * need to do some extra handling here to 
+                     * use the param name intead of the word param
+                     */
+                    $startpos = strpos($value, "$", $pos);
+                    $pos = strpos($value, " ", $startpos);
+                    if ($pos <= 0) {
+                        continue; // invalid param comment
+                    }
+                    $annote = substr($value, $startpos, $pos-$startpos);
+                }
+                $annotations[$annote] = trim(substr($value, $pos+1));
             }
         }
         return $annotations;
