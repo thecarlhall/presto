@@ -140,7 +140,7 @@ class RestController
         foreach ($this->_restClasses as $class=>$obj) {
             echo "class: $class <br/>";
             $classAnnotes = $this->getClassAnnotations($class);
-            var_dump($classAnnotes);
+            var_dump($classAnnotes); // @TODO REMOVE LATER
             echo "<br/>";
             // default convention is the name of the class
             $base_path = strtolower($class);
@@ -151,7 +151,7 @@ class RestController
                 $base_path = '/'.$base_path;
             }
             $methodsAnnotes = $this->getMethodsAnnotations($class);
-            var_dump($methodsAnnotes);
+            var_dump($methodsAnnotes); // @TODO REMOVE LATER
             echo "<br/>";
             foreach ($methodsAnnotes as $method=>$annotes) {
                 // default convention is the name of the method
@@ -165,25 +165,30 @@ class RestController
                 $res_path = $base_path.$res_path;
                 $found = false;
                 if (array_key_exists(self::ANNOTATION_GET, $annotes)) {
-                    $found = true;
                     $path = $annotes[self::ANNOTATION_GET];
                     $resourcesPath[$method] = 'GET'.' '.$path;
+                     // @TODO store in the resources array
+                    $found = true;
                 }
                 if (array_key_exists(self::ANNOTATION_POST, $annotes)) {
+                     // @TODO store in the resources array
                     $found = true;
                 }
                 if (array_key_exists(self::ANNOTATION_PUT, $annotes)) {
+                     // @TODO store in the resources array
                     $found = true;
                 }
                 if (array_key_exists(self::ANNOTATION_DELETE, $annotes)) {
+                     // @TODO store in the resources array
                     $found = true;
                 }
                 if (array_key_exists(self::ANNOTATION_METHOD, $annotes)) {
+                     // @TODO store in the resources array
                     $found = true;
                 }
                 if (!$found) {
-                    // default to GET
-
+                    // no annotation so default to GET
+                    // @TODO store in the resources array
                 }
             }
         }
