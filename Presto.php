@@ -165,7 +165,9 @@ class RestController
                 $base_path = '/'.$base_path;
             }
             $methodsAnnotes = $this->getMethodsAnnotations($class);
-            var_dump($methodsAnnotes); // @TODO REMOVE LATER
+            if ($this->_DEBUG) {
+                var_dump($methodsAnnotes);
+            }
             echo "<br/>";
             foreach ($methodsAnnotes as $method=>$annotes) {
                 // default convention is the name of the method
@@ -206,8 +208,10 @@ class RestController
                 }
             }
         }
-        // dump them
-        var_dump($this->_restResources);
+        if ($this->_DEBUG) {
+            var_dump($this->_restResources);
+        }
+        // @TODO cache the resources
     }
 
     /**
