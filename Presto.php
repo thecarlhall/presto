@@ -33,8 +33,8 @@ define('ABSPATH', dirname(__FILE__).'/'); // the absolute path to this file
 error_reporting(E_ALL ^ E_NOTICE ^ E_USER_NOTICE); // strict error reporting
 
 // handling debugging and testing
-$DEBUG = isset ($_REQUEST['debug'])?true:false;
-$SAMPLE = isset ($_REQUEST['sample'])?true:false;
+$DEBUG = isset($_REQUEST['debug']) ? true : false;
+$SAMPLE = isset($_REQUEST['sample']) ? true : false;
 
 /**
  * Base class for handling REST based calls (routing and processing),
@@ -328,7 +328,7 @@ class RestController
      *
      * @return the http method (example: GET)
      */
-    protected function getMethod()
+    function getMethod()
     {
         // @TODO only check for _method when REQUEST_METHOD = (GET|POST)
         $method = $_SERVER['REQUEST_METHOD'];
@@ -385,7 +385,7 @@ class RestController
      * @return the id
      * @deprecated handle this by pulling out the variable based on the path
      */
-    protected function getId($name)
+    function getId($name)
     {
         $id = '';
         $last_slash = strrpos($name, '/');
@@ -465,7 +465,7 @@ class RestController
      *
      * @return the array of annotation name -> value
      */
-    protected function getClassAnnotations($class)
+    function getClassAnnotations($class)
     {
         // using reflection, get the doc comment for parsing
         $refClass = new ReflectionClass($class);
@@ -481,7 +481,7 @@ class RestController
      *
      * @return an array of method name -> (annotation name -> value)
      */
-    protected function getMethodsAnnotations($class)
+    function getMethodsAnnotations($class)
     {
         $annotations = array ();
 
@@ -506,7 +506,7 @@ class RestController
      *
      * @return an array of annotation name -> value
      */
-    protected function getAnnotationsFromText($text)
+    function getAnnotationsFromText($text)
     {
         $annotations = array ();
 
@@ -520,6 +520,7 @@ class RestController
         $annotes = explode('@', $text);
         array_shift($annotes);
         $annotes = array_map('trim', $annotes);
+
         // now extract the annotations
         foreach ($annotes as $value) {
             $pos = strpos($value, " ");
@@ -541,7 +542,19 @@ class RestController
                     }
                     $annote = substr($value, $startpos, $pos-$startpos);
                 }
-                $annotations[$annote] = trim(substr($value, $pos+1));
+                $annote_value = trim(substr($value, $pos+1));
+                $annote_curr_value = $annotations[$annote];
+
+                if (!empty($annote_curr_value)) {
+                    $annote_values = array();
+                    if (is_array($annote_curr_value)) {
+                        $annote_values = $annote_curr_value;
+                    }
+                    $annote_values[] = $annote_value;
+                    $annotations[$annote] = $annote_values;
+                } else {
+                    $annotations[$annote] = $annote_value;
+                }
             }
         }
         return $annotations;

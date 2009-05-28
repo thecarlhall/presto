@@ -46,7 +46,49 @@ class AnnotationsTest extends UnitTestCase
      */
     function setUp()
     {
-        $_presto = new RestController();
+        if ($this->_presto == null) {
+            $this->_presto = new RestController();            
+        }
+    }
+
+    /**
+     * Test parsing of multiline comment text.
+     *
+     * @return void 
+     */
+    function testMultilineCommentParsing()
+    {
+        $text = <<<ANNO
+/**
+ * This is some test text that
+ * contained in multiline comments.
+ *
+ * @GET
+ * @SomeTag with some extra text
+ * @SomeTag
+ */
+ANNO;
+        $annotations = $this->_presto->getAnnotationsFromText($text);
+        var_dump($annotations);
+    }
+
+    /**
+     * Test parsing of arbitrary text.
+     *
+     * @return void 
+     */
+    function testTextParsing()
+    {
+        $text = <<<ANNO
+This is some test text that
+contained in multiline comments.
+
+@POST
+@OtherTag
+@Tag this is text after the tag
+ANNO;
+        $annotations = $this->_presto->getAnnotationsFromText($text);
+        var_dump($annotations);
     }
 
     /**
