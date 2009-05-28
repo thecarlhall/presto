@@ -32,8 +32,7 @@
 define('ABSPATH', dirname(__FILE__).'/'); // the absolute path to this file
 error_reporting(E_ALL ^ E_NOTICE ^ E_USER_NOTICE); // strict error reporting
 
-// handling debugging and testing
-$DEBUG = isset ($_REQUEST['debug'])?true:false;
+// handling sample testing
 $SAMPLE = isset ($_REQUEST['sample'])?true:false;
 
 /**
@@ -52,6 +51,7 @@ $SAMPLE = isset ($_REQUEST['sample'])?true:false;
  */
 class RestController
 {
+
     // {{{ constants
     const DEFAULT_RESOURCES_DIR = 'resources';
 
@@ -75,16 +75,28 @@ class RestController
      * @var array
      */
     private $_restResources = array();
+    /**
+     * Enable debugging output (default is false which means disabled)
+     * @var boolean
+     */
+    private $_DEBUG = false;
     // }}}
 
     /**
      * Create a Presto RestController
+     * Can set the debugging mode here or in the 
      *
-     * @param object $resourcesPath [optional] the path to the directory with
+     * @param object  $resourcesPath [optional] the path to the directory with
      *     the RestResource classes, defaults to resources
+     * @param boolean $debug         [optional] enable debugging output (set true),
+     *     off by default (set false)
      */
-    function __construct($resourcesPath = self::DEFAULT_RESOURCES_DIR)
+    function __construct($resourcesPath = self::DEFAULT_RESOURCES_DIR, $debug = null)
     {
+        if (! isset($debug)) {
+            $debug = isset ($_REQUEST['debug'])?true:false;
+        }
+        $this->_DEBUG = $debug;
         $this->loadResources($resourcesPath);
     }
 
@@ -140,7 +152,9 @@ class RestController
         foreach ($this->_restClasses as $class=>$obj) {
             echo "class: $class <br/>";
             $classAnnotes = $this->getClassAnnotations($class);
-            var_dump($classAnnotes); // @TODO REMOVE LATER
+            if ($this->_DEBUG) {
+                var_dump($classAnnotes);
+            }
             echo "<br/>";
             // default convention is the name of the class
             $base_path = strtolower($class);
@@ -546,6 +560,32 @@ class RestController
         }
         return $annotations;
     }
+
+    
+    /**
+     * Returns the debug setting
+     * 
+     * @return true if debugging is enabled, false otherwise
+     * @see RestController::$_DEBUG
+     */
+    public function getDebug()
+    {
+        return $this->_DEBUG;
+    }
+    
+    /**
+     * Sets the debug setting
+     * 
+     * @param boolean $debug set this to true to enable debug output
+     * 
+     * @return void
+     * @see RestController::$_DEBUG
+     */
+    public function setDebug($debug)
+    {
+        $this->_DEBUG = $debug;
+    }
+
 }
 
 /**
