@@ -85,7 +85,7 @@ contained in multiline comments.
 
 @POST
 @OtherTag
-@Tag this is text after the tag
+@Thing this is text after the tag
 ANNO;
         $annotations = $this->_presto->getAnnotationsFromText($text);
         var_dump($annotations);

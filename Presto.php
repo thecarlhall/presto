@@ -523,10 +523,12 @@ class RestController
 
         // now extract the annotations
         foreach ($annotes as $value) {
-            $pos = strpos($value, " ");
+            $pos = strpos($value, ' ');
             if ($pos <= 0) {
                 // only an annotation
-                $annotations[$value] = "";
+                $annotations = $this->collectAnnotationValue(
+                    $annotations, $value, null
+                );
             } else {
                 // includes args
                 $annote = substr($value, 0, $pos);
@@ -542,20 +544,42 @@ class RestController
                     }
                     $annote = substr($value, $startpos, $pos-$startpos);
                 }
-                $annote_value = trim(substr($value, $pos+1));
-                $annote_curr_value = $annotations[$annote];
-
-                if (!empty($annote_curr_value)) {
-                    $annote_values = array();
-                    if (is_array($annote_curr_value)) {
-                        $annote_values = $annote_curr_value;
-                    }
-                    $annote_values[] = $annote_value;
-                    $annotations[$annote] = $annote_values;
-                } else {
-                    $annotations[$annote] = $annote_value;
-                }
+                $value = trim(substr($value, $pos + 1));
+                $annotations = $this->collectAnnotationValue(
+                    $annotations, $annote, $value
+                );
             }
+        }
+        return $annotations;
+    }
+
+    /**
+     * Collects values based on a key into a given array.
+     *
+     * @param array  $annotations Array to collect values into.
+     * @param string $key         Associative key to store data in $annotations.
+     * @param object $value       The value to collect into $annotations.
+     *
+     * @return Original array with collected value. If current value at $key is not
+     *         an non-array, the current value is added first to a new array then
+     *         $value is appended.  If the current value is an array, $value is
+     *         appended to that array and set back to $key.
+     */
+    function collectAnnotationValue($annotations, $key, $value)
+    {
+        $curr_value = $annotations[$key];
+
+        if (isset($curr_value)) {
+            $values = null;
+            if (is_array($curr_value)) {
+                $values = $curr_value;
+            } else {
+                $values = array($curr_value);
+            }
+            $values[] = $value;
+            $annotations[$key] = $values;
+        } else {
+            $annotations[$key] = $value;
         }
         return $annotations;
     }
