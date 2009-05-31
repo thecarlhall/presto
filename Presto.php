@@ -560,7 +560,7 @@ class RestController
      * @param string $key         Associative key to store data in $annotations.
      * @param object $value       The value to collect into $annotations.
      *
-     * @return Original array with collected value. If current value at $key is not
+     * @return Original array with collected values. If current value at $key is not
      *         an non-array, the current value is added first to a new array then
      *         $value is appended.  If the current value is an array, $value is
      *         appended to that array and set back to $key.
