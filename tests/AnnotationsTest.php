@@ -23,7 +23,8 @@
  * @link      https://www.ohloh.net/p/PhpRESTo
  */
 
-require_once 'simpletest/autorun.php';
+require_once 'PHPUnit/Framework.php';
+//require_once 'simpletest/autorun.php';
 require_once '../Presto.php';
 
 /**
@@ -35,7 +36,7 @@ require_once '../Presto.php';
  * @license  http://www.apache.org/licenses/LICENSE-2.0 Apache License, Version 2.0
  * @link     https://www.ohloh.net/p/PhpRESTo
  */
-class AnnotationsTest extends UnitTestCase
+class AnnotationsTest extends PHPUnit_Framework_TestCase
 {
     private $_presto;
 
@@ -46,9 +47,7 @@ class AnnotationsTest extends UnitTestCase
      */
     function setUp()
     {
-        if ($this->_presto == null) {
-            $this->_presto = new RestController();            
-        }
+        $this->_presto = new RestController();
     }
 
     /**
@@ -56,39 +55,16 @@ class AnnotationsTest extends UnitTestCase
      *
      * @return void 
      */
-    function testMultilineCommentParsing()
+    function testMultilineCommentParsingWithCommentMarks()
     {
-        $text = <<<ANNO
-/**
- * This is some test text that
- * contained in multiline comments.
+        $text = "/**
+ * This is some test text that is
+ * contained in a multiline comment.
  *
  * @GET
- * @SomeTag with some extra text
- * @SomeTag
- */
-ANNO;
+ */";
         $annotations = $this->_presto->getAnnotationsFromText($text);
-        var_dump($annotations);
-    }
-
-    /**
-     * Test parsing of arbitrary text.
-     *
-     * @return void 
-     */
-    function testTextParsing()
-    {
-        $text = <<<ANNO
-This is some test text that
-contained in multiline comments.
-
-@POST
-@OtherTag
-@Thing this is text after the tag
-ANNO;
-        $annotations = $this->_presto->getAnnotationsFromText($text);
-        var_dump($annotations);
+        $this->assertTrue(array_key_exists('GET', $annotations));
     }
 
     /**
@@ -98,7 +74,7 @@ ANNO;
      */
     function testClassTagParsing()
     {
-        echo 'yay, test';
+//        echo 'yay, test';
     }
 }
 ?>

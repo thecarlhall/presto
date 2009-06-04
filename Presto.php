@@ -132,9 +132,11 @@ class RestController
                         if (file_exists($filePath)) {
                             $fpos = strpos($file, '.');
                             $className = substr($file, 0, $fpos);
-                            include $filePath;
+                            include_once $filePath;
                             if (class_exists($className)) {
-                                echo "found file: $filePath ($className) <br/>";
+                                if ($this->_DEBUG) {
+                                    echo "found file: $filePath ($className) <br/>";
+                                }
                                 $newClass = new $className;
                                 $this->_restClasses[$className] = $newClass;
                             }
@@ -150,12 +152,12 @@ class RestController
         }
         // now we pull the resources out of all the rest classes we found
         foreach ($this->_restClasses as $class=>$obj) {
-            echo "class: $class <br/>";
             $classAnnotes = $this->getClassAnnotations($class);
             if ($this->_DEBUG) {
+                echo "class: $class <br/>";
                 var_dump($classAnnotes);
+                echo "<br/>";
             }
-            echo "<br/>";
             // default convention is the name of the class
             $base_path = strtolower($class);
             if (! empty($classAnnotes[self::ANNOTATION_PATH])) {
@@ -167,8 +169,8 @@ class RestController
             $methodsAnnotes = $this->getMethodsAnnotations($class);
             if ($this->_DEBUG) {
                 var_dump($methodsAnnotes);
+                echo "<br/>";
             }
-            echo "<br/>";
             foreach ($methodsAnnotes as $method=>$annotes) {
                 // default convention is the name of the method
                 $res_path = strtolower($method);
