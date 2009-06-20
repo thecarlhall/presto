@@ -132,9 +132,11 @@ class RestController
                         if (file_exists($filePath)) {
                             $fpos = strpos($file, '.');
                             $className = substr($file, 0, $fpos);
-                            include $filePath;
+                            include_once $filePath;
                             if (class_exists($className)) {
-                                echo "found file: $filePath ($className) <br/>";
+                                if ($this->_DEBUG) {
+                                    echo "found file: $filePath ($className) <br/>";
+                                }
                                 $newClass = new $className;
                                 $this->_restClasses[$className] = $newClass;
                             }
@@ -150,12 +152,12 @@ class RestController
         }
         // now we pull the resources out of all the rest classes we found
         foreach ($this->_restClasses as $class=>$obj) {
-            echo "class: $class <br/>";
             $classAnnotes = $this->getClassAnnotations($class);
             if ($this->_DEBUG) {
+                echo "class: $class <br/>";
                 var_dump($classAnnotes);
+                echo "<br/>";
             }
-            echo "<br/>";
             // default convention is the name of the class
             $base_path = strtolower($class);
             if (! empty($classAnnotes[self::ANNOTATION_PATH])) {
@@ -167,8 +169,8 @@ class RestController
             $methodsAnnotes = $this->getMethodsAnnotations($class);
             if ($this->_DEBUG) {
                 var_dump($methodsAnnotes);
+                echo "<br/>";
             }
-            echo "<br/>";
             foreach ($methodsAnnotes as $method=>$annotes) {
                 // default convention is the name of the method
                 $res_path = strtolower($method);
@@ -346,7 +348,7 @@ class RestController
      *
      * @return the http method (example: GET)
      */
-    protected function getMethod()
+    function getMethod()
     {
         // @TODO only check for _method when REQUEST_METHOD = (GET|POST)
         $method = $_SERVER['REQUEST_METHOD'];
@@ -403,7 +405,7 @@ class RestController
      * @return the id
      * @deprecated handle this by pulling out the variable based on the path
      */
-    protected function getId($name)
+    function getId($name)
     {
         $id = '';
         $last_slash = strrpos($name, '/');
@@ -483,7 +485,7 @@ class RestController
      *
      * @return the array of annotation name -> value
      */
-    protected function getClassAnnotations($class)
+    function getClassAnnotations($class)
     {
         // using reflection, get the doc comment for parsing
         $refClass = new ReflectionClass($class);
@@ -499,7 +501,7 @@ class RestController
      *
      * @return an array of method name -> (annotation name -> value)
      */
-    protected function getMethodsAnnotations($class)
+    function getMethodsAnnotations($class)
     {
         $annotations = array ();
 
@@ -524,7 +526,7 @@ class RestController
      *
      * @return an array of annotation name -> value
      */
-    protected function getAnnotationsFromText($text)
+    function getAnnotationsFromText($text)
     {
         $annotations = array ();
 
@@ -538,12 +540,15 @@ class RestController
         $annotes = explode('@', $text);
         array_shift($annotes);
         $annotes = array_map('trim', $annotes);
+
         // now extract the annotations
         foreach ($annotes as $value) {
-            $pos = strpos($value, " ");
+            $pos = strpos($value, ' ');
             if ($pos <= 0) {
                 // only an annotation
-                $annotations[$value] = "";
+                $annotations = $this->collectAnnotationValue(
+                    $annotations, $value, null
+                );
             } else {
                 // includes args
                 $annote = substr($value, 0, $pos);
@@ -559,13 +564,46 @@ class RestController
                     }
                     $annote = substr($value, $startpos, $pos-$startpos);
                 }
-                $annotations[$annote] = trim(substr($value, $pos+1));
+                $value = trim(substr($value, $pos + 1));
+                $annotations = $this->collectAnnotationValue(
+                    $annotations, $annote, $value
+                );
             }
         }
         return $annotations;
     }
 
-    
+    /**
+     * Collects values based on a key into a given array.
+     *
+     * @param array  $annotations Array to collect values into.
+     * @param string $key         Associative key to store data in $annotations.
+     * @param object $value       The value to collect into $annotations.
+     *
+     * @return Original array with collected values. If current value at $key is not
+     *         an non-array, the current value is added first to a new array then
+     *         $value is appended.  If the current value is an array, $value is
+     *         appended to that array and set back to $key.
+     */
+    function collectAnnotationValue($annotations, $key, $value)
+    {
+        $curr_value = $annotations[$key];
+
+        if (isset($curr_value)) {
+            $values = null;
+            if (is_array($curr_value)) {
+                $values = $curr_value;
+            } else {
+                $values = array($curr_value);
+            }
+            $values[] = $value;
+            $annotations[$key] = $values;
+        } else {
+            $annotations[$key] = $value;
+        }
+        return $annotations;
+    }
+
     /**
      * Returns the debug setting
      * 
