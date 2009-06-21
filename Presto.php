@@ -55,7 +55,7 @@ class RestController
      */
     function __construct()
     {
-        loadResources();
+        //loadResources();
     }
 
     /**
@@ -66,7 +66,7 @@ class RestController
     function loadResources()
     {
         $resources_dir = @opendir('resources')
-            or die('Resources directory not found.');
+            || die('Resources directory not found.');
         while ($file = readdir($resources_dir)) {
             if ($file != '.' && $file != '..') {
                 include $file;
@@ -91,33 +91,37 @@ class RestController
      * 
      * @return Results from the matched resource.
      */
-    function dispatch($url)
+    function dispatch($url = null)
     {
-        !empty($url) or die('Cannot dispatch without a URL.');
-
         $entity = null;
         $id = null;
 
-        //if (empty($url)) {
-        //    // get everything after the name of this script
-        //    $url = substr($_SERVER['REQUEST_URI'],
-        //        strlen($_SERVER['SCRIPT_NAME']));
-        //}
+        if (empty($url)) {
+            // get everything after the name of the script
+            //$url = substr($_SERVER['REQUEST_URI'],
+            //  strlen($_SERVER['SCRIPT_NAME']));\
+            $url = $_SERVER['REQUEST_URI'];
+        }
 
-        // separate the uri into elements split on /
+        // separate the uri into elements by splitting on /
         $elements = explode('/', $url);
+
+        // make sure there is at least 1 element to work with (ie. a resource name)
         $num_elements = count($elements);
         $resource = null;
         if ($num_elements >= 1) {
             $entity = urldecode($elements[0]);
-            $resource = new $entity;
+            require self::RESOURCE_DIR.$entity;
+            if (class_exists($entity)) {
+                $resource = new $entity;
+            }
         }
 
         if ($num_elements >= 2) {
             $id = $this->getId(urldecode($elements[1]));
         }
 
-        /** @TODO only check for _method when REQUEST_METHOD = (GET|POST) */
+        // get the request method and output format
         $method = $this->getMethod();
         $format = $this->getFormat($url);
 
@@ -125,7 +129,7 @@ class RestController
         $data = $_POST['data'];
 
         switch ($method) {
-            // read
+        // read
         case 'GET':
             if (!empty($id)) {
                 if ($id == 'new') {
@@ -187,10 +191,8 @@ class RestController
     protected function getMethod()
     {
         $method = $_SERVER['REQUEST_METHOD'];
-        if ($method == 'GET' or $method == 'POST') {
-            if (!empty($_GET['_method'])) {
-                $method = strtoupper($_GET['_method']);
-            }
+        if (($method == 'GET' || $method == 'POST') && !empty($_GET['_method'])) {
+            $method = strtoupper($_GET['_method']);
         }
         return $method;
     }
@@ -273,7 +275,7 @@ class RestController
 
         $output = '';
         // send back the array if no format or 'raw'
-        if (empty($format) or $format == 'raw') {
+        if (empty($format) || $format == 'raw') {
             $output = $data;
         } elseif ($format == 'json') {
             $output = json_encode($data);
@@ -287,24 +289,6 @@ class RestController
             }
         }
         return $output;
-    }
-
-    /**
-     * Get the annotations found on a class.
-     * 
-     * @param Class $class The class to check for annotations.
-     * 
-     * @return Associative array of annotations.
-     */
-    protected function getClassAnnotations($class)
-    {
-        // using reflection, get the doc comment for parsing
-        $refClass = new ReflectionClass($class);
-        $comment = $refClass->getDocComment();
-
-        $this->getAnnotationsFromText($comment);
-
-        return $annotations;
     }
 
     /**
@@ -350,7 +334,6 @@ class RestController
         return $annotations;
     }
 }
-
 
 /*
  * Resource base class.
