@@ -1,18 +1,26 @@
 <?php
-/*
-   Copyright 2009, Carl Hall <carl.hall@gmail.com>
+/**
+    Copyright 2009, Carl Hall <carl.hall@gmail.com>
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+    PHP version 5
 
-       http://www.apache.org/licenses/LICENSE-2.0
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+       
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+    @category
+    @package
+    @author
+    @license Apache 2.0, http://www.apache.org/licenses/LICENSE-2.0
+    @link
 */
 /**
  * Base class for handling REST based calls.
@@ -22,17 +30,23 @@
  */
 class RestController
 {
+    /**
+     * Default constructor
+     *
+     * @return
+     */
     function __construct()
     {
-		loadResources();
+        loadResources();
     }
 
     function loadResources()
     {
-        $resources_dir = @opendir('resources') or die('Resources directory not found.');
+        $resources_dir = @opendir('resources')
+            or die('Resources directory not found.');
         while ($file = readdir($resources_dir)) {
             if ($file != '.' && $file != '..') {
-                require $file;
+                include $file;
             }
         }
     }
@@ -44,15 +58,16 @@ class RestController
 
     function dispatch($url)
     {
-    	!empty($url) or die('Cannot dispatch without a URL.');
+        !empty($url) or die('Cannot dispatch without a URL.');
 
-    	$entity = null;
+        $entity = null;
         $id = null;
 
-//        if (empty($url)) {
-//            // get everything after the name of this script
-//            $url = substr($_SERVER['REQUEST_URI'], strlen($_SERVER['SCRIPT_NAME']));
-//        }
+        //if (empty($url)) {
+        //    // get everything after the name of this script
+        //    $url = substr($_SERVER['REQUEST_URI'],
+        //        strlen($_SERVER['SCRIPT_NAME']));
+        //}
 
         // separate the uri into elements split on /
         $elements = explode('/', $url);
@@ -68,51 +83,53 @@ class RestController
         }
 
         /** @TODO only check for _method when REQUEST_METHOD = (GET|POST) */
-        $method = $this->get_method();
-        $format = $this->get_format($url);
+        $method = $this->getMethod();
+        $format = $this->getFormat($url);
 
         $results = null;
         $data = $_POST['data'];
 
         switch ($method) {
-	        // read
-            case 'GET':
-                if (!empty($id)) {
-                    if ($id == 'new') {
-                        $resource->_new();
-                    } else {
-                        // match on @GET /resource/{?}, @GET /{?}
-                        $resource->read($id);
-                    }
+            // read
+        case 'GET':
+            if (!empty($id)) {
+                if ($id == 'new') {
+                    $resource->_new();
                 } else {
-                    // get a list of the current user's data
-                    $resource->index();
+                    // match on @GET /resource/{?}, @GET /{?}
+                    $resource->read($id);
                 }
-                break;
+            } else {
+                // get a list of the current user's data
+                $resource->index();
+            }
+            break;
 
-            // update
-            case 'POST':
-                $resource->create($data);
-                break;
+        // update
+        case 'POST':
+            $resource->create($data);
+            break;
 
-            // create
-            case 'PUT':
-                $resource->update($data);
-                break;
+        // create
+        case 'PUT':
+            $resource->update($data);
+            break;
 
-            // delete
-            case 'DELETE':
-                $resource->delete($id);
-                break;
+        // delete
+        case 'DELETE':
+            $resource->delete($id);
+            break;
         }
 
         $results = null;
         if (!empty($resource->output)) {
             $results = $this->transform($resource->output, $format);
         }
-        header("HTTP/1.1 {$resource->response_code}", true, $resource->response_code);
-		
-/*
+        header(
+            "HTTP/1.1 {$resource->response_code}", true, $resource->response_code
+        );
+        
+        /*
         if ($results === true) {
             send_response_code(204);
         } elseif ($results === false) {
@@ -123,28 +140,28 @@ class RestController
             $output = $this->transform($results, $format);
             return $output;
         }
-*/
+        */
     }
 
-	/**
-	 * Gets the request method performed.
-	 */
-	protected function get_method()
-	{
-		$method = $_SERVER['REQUEST_METHOD'];
-		if ($method == 'GET' or $method == 'POST') {
-			if (!empty($_GET['_method'])) {
-				$method = strtoupper($_GET['_method']);
-			}
-		}
-		return $method;
-	}
+    /**
+     * Gets the request method performed.
+     */
+    protected function getMethod()
+    {
+        $method = $_SERVER['REQUEST_METHOD'];
+        if ($method == 'GET' or $method == 'POST') {
+            if (!empty($_GET['_method'])) {
+                $method = strtoupper($_GET['_method']);
+            }
+        }
+        return $method;
+    }
 
     /**
      * Get the requested response format based on the name of the requested
      * playlist.
      */
-    protected function get_format($name)
+    protected function getFormat($name)
     {
         // set the default format
         //$format = 'html';
@@ -158,7 +175,8 @@ class RestController
         }
 
         if ($last_dot !== false && $last_dot < strlen($name) - 1
-            && $last_dot > $last_slash) {
+            && $last_dot > $last_slash
+        ) {
             $format = substr($name, $last_dot + 1);
         }
 
@@ -194,7 +212,7 @@ class RestController
     function transform($results, $format)
     {
         // initialize templating
-        require_once SMARTY_DIR . 'Smarty.class.php';
+        include_once SMARTY_DIR . 'Smarty.class.php';
         $smarty = new Smarty;
         $smarty->assign('title', $results['title']);
 
@@ -220,66 +238,82 @@ class RestController
 
     protected function get_class_annotations($class)
     {
-    	// using reflection, get the doc comment for parsing
+        // using reflection, get the doc comment for parsing
         $refClass = new ReflectionClass($class);
         $comment = $refClass->getDocComment();
 
-		$this->get_annotations_from_text($comment);
+        $this->get_annotations_from_text($comment);
 
         return $annotations;
     }
 
-	/**
-	 * Parses the annotations found on methods in a class.
-	 *
-	 * @param $class Class instance.
-	 */
-    protected function get_methods_annotations($class)
+    /**
+     * Parses the annotations found on methods in a class.
+     *
+     * @param $class Class instance.
+     */
+    protected function getMethodsAnnotations($class)
     {
-    	$annotations = array();
+        $annotations = array();
 
-    	// get the methods of the class
-		$refClass = new ReflectionClass($class);
-		$methods = $refClass->getMethods();
+        // get the methods of the class
+        $refClass = new ReflectionClass($class);
+        $methods = $refClass->getMethods();
 
-		foreach ( $methods as $method ) {
-			$methodAnnotations = $this->get_annotations_from_text($method->getDocComment());
-			$annotations[$method->getName()] = $methodAnnotations;
-		}
+        foreach ( $methods as $method ) {
+            $methodAnnotations = $this->get_annotations_from_text(
+                $method->getDocComment()
+            );
+            $annotations[$method->getName()] = $methodAnnotations;
+        }
        
-		return $annotations;
+        return $annotations;
     }
 
-	/**
-	 * Parses the annotations from a block of text usually taken from a class
-	 * or method doc comment.
-	 *
-	 * @param string $text
-	 */
-	protected function get_annotations_from_text($text)
-	{
-		// split on @ then push the first element off because it is not part of
-		// the annotation.
+    /**
+     * Parses the annotations from a block of text usually taken from a class
+     * or method doc comment.
+     *
+     * @param string $text
+     */
+    protected function get_annotations_from_text($text)
+    {
+        // split on @ then push the first element off because it is not part of
+        // the annotation.
         $annotations = explode('@', $text);
         array_shift($annotations);
-        $annotations = array_map(trim, $annotations);
+        $annotations = array_map('trim', $annotations);
         return $annotations;
-	}
+    }
 }
 
 class RestResource
 {
-	protected $response_code = 204;
-	protected $headers = array();
+    protected $response_code = 204;
+    protected $headers = array();
     protected $output = null;
 
-    // these are only placeholders.  these will be replaced by annotation based
-	// calls.
-    function _new() {}
-    function _list() {}
-    function create() {}
-    function read() {}
-    function update() {}
-    function delete() {}
+    /**
+     *  these are only placeholders.  these will be replaced by annotation based
+     *  calls.
+     */
+    function _new()
+    {
+    }
+    function _list()
+    {
+    }
+    function create()
+    {
+    }
+    function read()
+    {
+    }
+    function update()
+    {
+    }
+    function delete()
+    {
+    }
 }
 ?>
