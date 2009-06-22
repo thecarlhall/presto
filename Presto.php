@@ -114,6 +114,8 @@ class RestController
             require self::RESOURCE_DIR.$entity;
             if (class_exists($entity)) {
                 $resource = new $entity;
+            } else {
+                die("Could not find requested resource [$entity]");
             }
         }
 
@@ -127,6 +129,13 @@ class RestController
 
         $results = null;
         $data = $_POST['data'];
+
+        $methodNotes = $this->getMethodsAnnotations($entity);
+
+        if (!array_key_exists($method, $methodNotes)) {
+            $paths = $methodNotes[$method];
+            
+        }
 
         switch ($method) {
         // read
@@ -310,7 +319,17 @@ class RestController
             $methodAnnotations = $this->getAnnotationsFromText(
                 $method->getDocComment()
             );
-            $annotations[$method->getName()] = $methodAnnotations;
+            foreach ($methodAnnotations as $name => $value) {
+                $values = null;
+                if (!empty($annotations[$name])) {
+                    $values = $annotations[$name];
+                } else {
+                    $values = array();
+                }
+                $values[] = array($value => $method->getName());
+                $annotations[$name] = $values;
+            }
+            //$annotations[$method->getName()] = $methodAnnotations;
         }
        
         return $annotations;
