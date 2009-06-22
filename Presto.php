@@ -283,6 +283,14 @@ class RestController
         // @TODO this should be the data from the request body instead
         $data = $_POST['data'];
 
+        $methodNotes = $this->getMethodsAnnotations($entity);
+        if (array_key_exists($method, $methodNotes)) {
+            $paths = $methodNotes[$method];
+            // @TODO go through the URL and clip off elements from the end until a
+            // match is found.
+        }
+
+        /*
         switch($method) {
         case "GET":
             // read
@@ -317,7 +325,7 @@ class RestController
         default:
             die ("Invalid method type specified: ".$method);
         }
-
+        */
         // @TODO handle the other headers
 
         // handle the response code
@@ -512,7 +520,17 @@ class RestController
         foreach ($methods as $method) {
             $comment = $method->getDocComment();
             $methodAnnotations = $this->getAnnotationsFromText($comment);
-            $annotations[$method->getName()] = $methodAnnotations;
+            foreach ($methodAnnotations as $name => $value) {
+                $values = null;
+                if (!empty($annotations[$name])) {
+                    $values = $annotations[$name];
+                } else {
+                    $values = array();
+                }
+                $values[] = array($value => $method->getName());
+                $annotations[$name] = $values;
+            }
+            //$annotations[$method->getName()] = $methodAnnotations;
         }
 
         return $annotations;
