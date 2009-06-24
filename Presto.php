@@ -145,34 +145,37 @@ class RestController
                 }
             }
         }
+        // make sure there were some resources discovered
         if (sizeof($this->_restClasses) == 0) {
             die ("WARNING: No RestResource classes found, "
             ."you need to create at least one class which extends "
             ."RestResource in: $resourcesPath");
         }
+
         // now we pull the resources out of all the rest classes we found
-        foreach ($this->_restClasses as $class=>$obj) {
-            $classAnnotes = $this->getClassAnnotations($class);
+        foreach ($this->_restClasses as $className => $clazz) {
+            // get the annotations on the class
+            $classAnnotes = $this->getClassAnnotations($className);
             if ($this->_DEBUG) {
                 echo "class: $class <br/>";
                 var_dump($classAnnotes);
                 echo "<br/>";
             }
-            // default convention is the name of the class
-            $base_path = strtolower($class);
+            // use the class name as the base path by default
+            $base_path = strtolower($className);
             if (! empty($classAnnotes[self::ANNOTATION_PATH])) {
                 $base_path = $classAnnotes[self::ANNOTATION_PATH];
             }
             if (substr($base_path, 0, 1) != '/') {
                 $base_path = '/'.$base_path;
             }
-            $methodsAnnotes = $this->getMethodsAnnotations($class);
+            $methodsAnnotes = $this->getMethodsAnnotations($className);
             if ($this->_DEBUG) {
                 var_dump($methodsAnnotes);
                 echo "<br/>";
             }
-            foreach ($methodsAnnotes as $method=>$annotes) {
-                // default convention is the name of the method
+            foreach ($methodsAnnotes as $method => $annotes) {
+                // use the method name as the default 
                 $res_path = strtolower($method);
                 if (! empty($annotes[self::ANNOTATION_PATH])) {
                     $res_path = $annotes[self::ANNOTATION_PATH];
@@ -184,7 +187,7 @@ class RestController
                 $found = false;
                 if (array_key_exists(self::ANNOTATION_GET, $annotes)) {
                     $path = $annotes[self::ANNOTATION_GET];
-                    $resourcesPath[$method] = 'GET'.' '.$path;
+                    $resourcesPath[$method] = "GET $path";
                      // @TODO store in the resources array
                     $found = true;
                 }
@@ -493,10 +496,10 @@ class RestController
      *
      * @return the array of annotation name -> value
      */
-    function getClassAnnotations($class)
+    function getClassAnnotations($className)
     {
         // using reflection, get the doc comment for parsing
-        $refClass = new ReflectionClass($class);
+        $refClass = new ReflectionClass($className);
         $comment = $refClass->getDocComment();
         $annotations = $this->getAnnotationsFromText($comment);
         return $annotations;
@@ -509,28 +512,28 @@ class RestController
      *
      * @return an array of method name -> (annotation name -> value)
      */
-    function getMethodsAnnotations($class)
+    function getMethodsAnnotations($className)
     {
         $annotations = array ();
 
         // get the methods of the class
-        $refClass = new ReflectionClass($class);
+        $refClass = new ReflectionClass($className);
         $methods = $refClass->getMethods();
 
         foreach ($methods as $method) {
             $comment = $method->getDocComment();
             $methodAnnotations = $this->getAnnotationsFromText($comment);
-            foreach ($methodAnnotations as $name => $value) {
-                $values = null;
-                if (!empty($annotations[$name])) {
-                    $values = $annotations[$name];
-                } else {
-                    $values = array();
-                }
-                $values[] = array($value => $method->getName());
-                $annotations[$name] = $values;
-            }
-            //$annotations[$method->getName()] = $methodAnnotations;
+//            foreach ($methodAnnotations as $name => $value) {
+//                $values = null;
+//                if (!empty($annotations[$name])) {
+//                    $values = $annotations[$name];
+//                } else {
+//                    $values = array();
+//                }
+//                $values[] = array($value => $method->getName());
+//                $annotations[$name] = $values;
+//            }
+            $annotations[$method->getName()] = $methodAnnotations;
         }
 
         return $annotations;
