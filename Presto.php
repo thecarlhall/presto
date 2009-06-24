@@ -303,16 +303,17 @@ class RestController
     /**
      * Parses the annotations found on methods in a class.
      *
-     * @param Class $class Class instance to check methods for annotations.
+     * @param string $className Class name to check methods for annotations.
      * 
-     * @return Associative array of annotations on methods.
+     * @return Associative array of annotations on methods.  Array is nested by
+     *         annotation name, text after name then method name.
      */
-    protected function getMethodsAnnotations($class)
+    protected function getMethodsAnnotations($className)
     {
         $annotations = array();
 
         // get the methods of the class
-        $refClass = new ReflectionClass($class);
+        $refClass = new ReflectionClass($className);
         $methods = $refClass->getMethods();
 
         foreach ( $methods as $method ) {
